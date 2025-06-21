@@ -26,7 +26,6 @@ import org.apache.kafka.common.TopicIdPartition;
 import org.apache.kafka.common.config.TopicConfig;
 import org.apache.kafka.common.errors.RetriableException;
 import org.apache.kafka.common.errors.TopicExistsException;
-import org.apache.kafka.common.internals.FatalExitError;
 import org.apache.kafka.common.utils.KafkaThread;
 import org.apache.kafka.common.utils.Time;
 import org.apache.kafka.common.utils.Utils;
@@ -465,6 +464,10 @@ public class TopicBasedRemoteLogMetadataManager implements RemoteLogMetadataMana
             initializationFailed = true;
         } finally {
             Utils.closeQuietly(adminClient, "AdminClient");
+            if (initializationFailed) {
+                log.error("Stopping the server as it failed to initialize topic-based RLMM resources");
+                Exit.exit(1);
+            }
         }
     }
 
@@ -559,10 +562,6 @@ public class TopicBasedRemoteLogMetadataManager implements RemoteLogMetadataMana
     }
 
     private void ensureInitializedAndNotClosed() {
-        if (initializationFailed) {
-            // If initialization is failed, shutdown the broker.
-            throw new FatalExitError();
-        }
         if (closing.get() || !initialized.get()) {
             throw new IllegalStateException("This instance is in invalid state, initialized: " + initialized +
                                                     " close: " + closing);
