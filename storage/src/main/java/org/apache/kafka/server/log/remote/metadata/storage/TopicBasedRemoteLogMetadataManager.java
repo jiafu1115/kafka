@@ -26,8 +26,9 @@ import org.apache.kafka.common.TopicIdPartition;
 import org.apache.kafka.common.config.TopicConfig;
 import org.apache.kafka.common.errors.RetriableException;
 import org.apache.kafka.common.errors.TopicExistsException;
-import org.apache.kafka.common.internals.FatalExitError;
+import org.apache.kafka.common.errors.UnknownTopicOrPartitionException;
 import org.apache.kafka.common.utils.KafkaThread;
+import org.apache.kafka.common.utils.Exit;
 import org.apache.kafka.common.utils.Time;
 import org.apache.kafka.common.utils.Utils;
 import org.apache.kafka.server.log.remote.storage.RemoteLogMetadata;
@@ -51,6 +52,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import org.apache.kafka.common.utils.Exit;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
@@ -465,10 +467,14 @@ public class TopicBasedRemoteLogMetadataManager implements RemoteLogMetadataMana
             initializationFailed = true;
         } finally {
             Utils.closeQuietly(adminClient, "AdminClient");
+            if (initializationFailed) {
+                log.error("Stopping the server as it failed to initialize topic-based RLMM resources");
+                Exit.exit(1);
+            }
         }
     }
 
-    boolean doesTopicExist(Admin adminClient, String topic) {
+    boolean doesTopicExist(Admin adminClient, String topic) throws ExecutionException, InterruptedException {
         try {
             TopicDescription description = adminClient.describeTopics(Set.of(topic))
                     .topicNameValues()
@@ -477,13 +483,14 @@ public class TopicBasedRemoteLogMetadataManager implements RemoteLogMetadataMana
             if (description != null) {
                 log.info("Topic {} exists. TopicId: {}, numPartitions: {}, ", topic,
                         description.topicId(), description.partitions().size());
-            } else {
-                log.info("Topic {} does not exist.", topic);
             }
-            return description != null;
+            return true;
         } catch (ExecutionException | InterruptedException ex) {
-            log.info("Topic {} does not exist. Error: {}", topic, ex.getCause().getMessage());
-            return false;
+            if (ex.getCause() instanceof UnknownTopicOrPartitionException) {
+                log.info("Topic {} does not exist", topic);
+                return false;
+            }
+            throw ex;
         }
     }
 
@@ -544,7 +551,7 @@ public class TopicBasedRemoteLogMetadataManager implements RemoteLogMetadataMana
                 log.info("Topic [{}] already exists", topic);
                 doesTopicExist = true;
             } else {
-                log.error("Encountered error while creating {} topic.", topic, e);
+                log.error("Encountered error while querying or creating {} topic.", topic, e);
             }
         }
         return doesTopicExist;
@@ -559,10 +566,6 @@ public class TopicBasedRemoteLogMetadataManager implements RemoteLogMetadataMana
     }
 
     private void ensureInitializedAndNotClosed() {
-        if (initializationFailed) {
-            // If initialization is failed, shutdown the broker.
-            throw new FatalExitError();
-        }
         if (closing.get() || !initialized.get()) {
             throw new IllegalStateException("This instance is in invalid state, initialized: " + initialized +
                                                     " close: " + closing);
