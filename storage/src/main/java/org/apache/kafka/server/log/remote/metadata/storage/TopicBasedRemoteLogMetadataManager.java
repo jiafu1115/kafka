@@ -563,10 +563,6 @@ public class TopicBasedRemoteLogMetadataManager implements RemoteLogMetadataMana
     }
 
     private void ensureInitializedAndNotClosed() {
-        if (initializationFailed) {
-            // If initialization is failed, shutdown the broker.
-            throw new FatalExitError();
-        }
         if (closing.get() || !initialized.get()) {
             throw new IllegalStateException("This instance is in invalid state, initialized: " + initialized +
                                                     " close: " + closing);
