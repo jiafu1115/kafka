@@ -52,7 +52,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import org.apache.kafka.common.utils.Exit;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
@@ -551,7 +550,7 @@ public class TopicBasedRemoteLogMetadataManager implements RemoteLogMetadataMana
                 log.info("Topic [{}] already exists", topic);
                 doesTopicExist = true;
             } else {
-                log.error("Encountered error while querying or creating {} topic.", topic, e);
+                log.error("Encountered error while creating {} topic.", topic, e);
             }
         }
         return doesTopicExist;
