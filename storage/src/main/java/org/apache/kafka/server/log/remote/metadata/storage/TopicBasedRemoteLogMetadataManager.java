@@ -467,7 +467,7 @@ public class TopicBasedRemoteLogMetadataManager implements RemoteLogMetadataMana
             Utils.closeQuietly(adminClient, "AdminClient");
             if (initializationFailed) {
                 log.error("Stopping the server as it failed to initialize topic-based RLMM resources");
-                Exit.exit(0);
+                Exit.exit(1);
             }
         }
     }
