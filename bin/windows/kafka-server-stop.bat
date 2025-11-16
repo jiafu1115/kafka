@@ -18,6 +18,6 @@ where wmic >nul 2>&1
 IF NOT ERRORLEVEL 1 (
     wmic process where "commandline like '%%kafka.Kafka%%' and not name='wmic.exe'" delete
 ) ELSE (
-    powershell -Command "$pids = (Get-CimInstance Win32_Process | ? {$_.CommandLine -like '*kafka.Kafka*' -and $_.Name -ne 'powershell.exe'}).ProcessId; if ($pids) { $pids | Stop-Process -Force }"
+	powershell -Command "Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'java.exe' -and $_.CommandLine -like '*kafka.Kafka*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }"
 )
 rem ps ax | grep -i 'kafka.Kafka' | grep -v grep | awk '{print $1}' | xargs kill -SIGTERM
