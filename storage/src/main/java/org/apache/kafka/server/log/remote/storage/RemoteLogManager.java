@@ -919,7 +919,7 @@ public class RemoteLogManager implements Closeable, AsyncOffsetReader {
                 if (segmentLargestTimestamp >= 0) {
                     long segmentAge = currentTimeMs - segmentLargestTimestamp;
                     if (segmentAge < localRetentionMs) {
-                        logger.info("Segment {} is still within local retention time. Segment age: {} ms, local retention: {} ms",
+                        logger.info("Segment {} is still within local retention time. Segment age: {} ms, local retention: {} ms, skipping upload",
                                 segment, segmentAge, localRetentionMs);
                         return true;
                     }
@@ -948,7 +948,7 @@ public class RemoteLogManager implements Closeable, AsyncOffsetReader {
             
             // If uploading this segment to remote would make local log size less than retention size, skip upload
             if (sizeAfterUploading < localRetentionBytes) {
-                logger.info("Segment {}: size after uploading to remote {} bytes < retention {} bytes, skipping upload",
+                logger.info("Segment {}: size after planing to upload to remote {} bytes < retention {} bytes, skipping upload",
                         segment, sizeAfterUploading, localRetentionBytes);
                 return true;
             }
