@@ -903,10 +903,59 @@ public class RemoteLogManager implements Closeable, AsyncOffsetReader {
         }
 
         /**
+         * Check if segment is still within local retention time.
+         * @param segment The log segment to check
+         * @param localRetentionMs Local retention time in milliseconds
+         * @return true if segment is still within local retention time, false otherwise
+         */
+        private boolean isWithinLocalRetentionTime(LogSegment segment, long localRetentionMs) {
+            if (localRetentionMs <= 0) {
+                return false;
+            }
+            
+            long currentTimeMs = time.milliseconds();
+            try {
+                long segmentLargestTimestamp = segment.largestTimestamp();
+                if (segmentLargestTimestamp >= 0) {
+                    long segmentAge = currentTimeMs - segmentLargestTimestamp;
+                    if (segmentAge < localRetentionMs) {
+                        logger.debug("Segment {} is still within local retention time. Segment age: {} ms, local retention: {} ms",
+                                segment, segmentAge, localRetentionMs);
+                        return true;
+                    }
+                }
+            } catch (IOException e) {
+                logger.warn("Failed to get largest timestamp for segment {}, will not skip based on time", segment, e);
+            }
+            return false;
+        }
+
+        /**
+         * Check if local log size is still within local retention size.
+         * @param log The unified log
+         * @param localRetentionBytes Local retention size in bytes
+         * @return true if local log size is still within local retention size, false otherwise
+         */
+        private boolean isWithinLocalRetentionSize(UnifiedLog log, long localRetentionBytes) {
+            if (localRetentionBytes <= 0) {
+                return false;
+            }
+            
+            long onlyLocalLogSize = log.onlyLocalLogSegmentsSize();
+            if (onlyLocalLogSize < localRetentionBytes) {
+                logger.debug("Local log size is still within local retention size. Only local log size: {} bytes, local retention size: {} bytes",
+                        onlyLocalLogSize, localRetentionBytes);
+                return true;
+            }
+            return false;
+        }
+
+        /**
          *  Segments which match the following criteria are eligible for copying to remote storage:
          *  1) Segment is not the active segment and
          *  2) Segment end-offset is less than the last-stable-offset as remote storage should contain only
          *     committed/acked messages
+         *  3) Segment is not within local retention time or size (close to expiration or already expired)
          * @param log The log from which the segments are to be copied
          * @param fromOffset The offset from which the segments are to be copied
          * @param lastStableOffset The last stable offset of the log
@@ -920,6 +969,26 @@ public class RemoteLogManager implements Closeable, AsyncOffsetReader {
                     LogSegment previousSeg = segments.get(idx - 1);
                     LogSegment currentSeg = segments.get(idx);
                     if (currentSeg.baseOffset() <= lastStableOffset) {
+                        // Only upload segments that are not within local retention time or size
+                        // If segment is still within local retention time AND size, skip upload
+                        // Since local files won't be deleted until uploaded to remote, we can safely
+                        // delay upload until the segment is close to expiration
+                        
+                        // Check time-based retention
+                        long localRetentionMs = log.config().localRetentionMs();
+                        if (isWithinLocalRetentionTime(previousSeg, localRetentionMs)) {
+                            // If this segment is still within retention time, all subsequent segments are also within retention time
+                            break;
+                        }
+                        
+                        // Check size-based retention
+                        long localRetentionBytes = log.config().localRetentionBytes();
+                        if (isWithinLocalRetentionSize(log, localRetentionBytes)) {
+                            // If local log size is still within retention size, all subsequent segments are also within retention size
+                            break;
+                        }
+                        
+                        // Segment is eligible for upload (not within retention time or size)
                         candidateLogSegments.add(new EnrichedLogSegment(previousSeg, currentSeg.baseOffset()));
                     }
                 }
