@@ -931,20 +931,25 @@ public class RemoteLogManager implements Closeable, AsyncOffsetReader {
         }
 
         /**
-         * Check if local log size is still within local retention size.
-         * @param log The unified log
+         * Check if local log size is still within local retention size after removing the segment and already uploaded segments.
+         * @param onlyLocalLogSize Current local log size
+         * @param segment The segment to check
+         * @param accumulatedUploadedSize Total size of segments already decided to upload
          * @param localRetentionBytes Local retention size in bytes
-         * @return true if local log size is still within local retention size, false otherwise
+         * @return true if local log size after removing this segment and already uploaded segments would still be within local retention size, false otherwise
          */
-        private boolean isWithinLocalRetentionSize(UnifiedLog log, long localRetentionBytes) {
+        private boolean isWithinLocalRetentionSize(long onlyLocalLogSize, LogSegment segment, long accumulatedUploadedSize, long localRetentionBytes) {
             if (localRetentionBytes <= 0) {
                 return false;
             }
             
-            long onlyLocalLogSize = log.onlyLocalLogSegmentsSize();
-            if (onlyLocalLogSize < localRetentionBytes) {
-                logger.debug("Local log size is still within local retention size. Only local log size: {} bytes, local retention size: {} bytes",
-                        onlyLocalLogSize, localRetentionBytes);
+            int segmentSize = segment.size();
+            long sizeAfterRemoval = onlyLocalLogSize - accumulatedUploadedSize - segmentSize;
+            
+            // If removing this segment and already uploaded segments would make local log size less than retention size, skip upload
+            if (sizeAfterRemoval < localRetentionBytes) {
+                logger.debug("Local log size after removing segment {} and already uploaded segments would be {} bytes, which is less than local retention size {} bytes. Only local log size: {} bytes, accumulated uploaded size: {} bytes, segment size: {} bytes",
+                        segment, sizeAfterRemoval, localRetentionBytes, onlyLocalLogSize, accumulatedUploadedSize, segmentSize);
                 return true;
             }
             return false;
@@ -965,6 +970,10 @@ public class RemoteLogManager implements Closeable, AsyncOffsetReader {
             List<EnrichedLogSegment> candidateLogSegments = new ArrayList<>();
             List<LogSegment> segments = log.logSegments(fromOffset, Long.MAX_VALUE);
             if (!segments.isEmpty()) {
+                long onlyLocalLogSize = log.onlyLocalLogSegmentsSize();
+                long accumulatedUploadedSize = 0;
+                long localRetentionBytes = log.config().localRetentionBytes();
+                
                 for (int idx = 1; idx < segments.size(); idx++) {
                     LogSegment previousSeg = segments.get(idx - 1);
                     LogSegment currentSeg = segments.get(idx);
@@ -982,14 +991,15 @@ public class RemoteLogManager implements Closeable, AsyncOffsetReader {
                         }
                         
                         // Check size-based retention
-                        long localRetentionBytes = log.config().localRetentionBytes();
-                        if (isWithinLocalRetentionSize(log, localRetentionBytes)) {
-                            // If local log size is still within retention size, all subsequent segments are also within retention size
-                            break;
+                        if (isWithinLocalRetentionSize(onlyLocalLogSize, previousSeg, accumulatedUploadedSize, localRetentionBytes)) {
+                            // If removing this segment and already uploaded segments would make local log size less than retention size, skip upload
+                            // Note: We can't break here because subsequent segments might be larger and could be uploaded
+                            continue;
                         }
                         
                         // Segment is eligible for upload (not within retention time or size)
                         candidateLogSegments.add(new EnrichedLogSegment(previousSeg, currentSeg.baseOffset()));
+                        accumulatedUploadedSize += previousSeg.size();
                     }
                 }
                 // Discard the last active segment
