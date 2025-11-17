@@ -946,7 +946,6 @@ public class RemoteLogManager implements Closeable, AsyncOffsetReader {
             int segmentSize = segment.size();
             long sizeAfterUploading = localLogSize - accumulatedUploadedSize - segmentSize;
             
-            // If uploading this segment to remote would make local log size less than retention size, skip upload
             if (sizeAfterUploading < localRetentionBytes) {
                 logger.info("Segment {}: size after planing to upload to remote {} bytes < retention {} bytes, skipping upload",
                         segment, sizeAfterUploading, localRetentionBytes);
