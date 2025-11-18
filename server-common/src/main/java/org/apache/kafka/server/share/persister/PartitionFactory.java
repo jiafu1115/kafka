@@ -28,6 +28,7 @@ public class PartitionFactory {
     public static final int DEFAULT_STATE_EPOCH = 0;
     public static final int UNINITIALIZED_START_OFFSET = -1;
     public static final int UNINITIALIZED_DELIVERY_COMPLETE_COUNT = -1;
+    public static final long UNINITIALIZED_LAG = -1;
     public static final short DEFAULT_ERROR_CODE = Errors.NONE.code();
     public static final int DEFAULT_LEADER_EPOCH = 0;
     public static final String DEFAULT_ERR_MESSAGE = Errors.NONE.message();
@@ -48,8 +49,8 @@ public class PartitionFactory {
         return new PartitionData(partition, DEFAULT_STATE_EPOCH, UNINITIALIZED_START_OFFSET, UNINITIALIZED_DELIVERY_COMPLETE_COUNT, errorCode, errorMessage, DEFAULT_LEADER_EPOCH, null);
     }
 
-    public static PartitionStateSummaryData newPartitionStateSummaryData(int partition, int stateEpoch, long startOffset, int leaderEpoch, short errorCode, String errorMessage) {
-        return new PartitionData(partition, stateEpoch, startOffset, UNINITIALIZED_DELIVERY_COMPLETE_COUNT, errorCode, errorMessage, leaderEpoch, null);
+    public static PartitionStateSummaryData newPartitionStateSummaryData(int partition, int stateEpoch, long startOffset, int deliveryCompleteCount, int leaderEpoch, short errorCode, String errorMessage) {
+        return new PartitionData(partition, stateEpoch, startOffset, deliveryCompleteCount, errorCode, errorMessage, leaderEpoch, null);
     }
 
     public static PartitionStateBatchData newPartitionStateBatchData(int partition, int stateEpoch, long startOffset, int deliveryCompleteCount, int leaderEpoch, List<PersisterStateBatch> stateBatches) {
