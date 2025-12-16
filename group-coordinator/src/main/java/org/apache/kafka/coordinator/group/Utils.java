@@ -24,6 +24,7 @@ import org.apache.kafka.common.message.ConsumerProtocolAssignment;
 import org.apache.kafka.common.message.ConsumerProtocolSubscription;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.coordinator.common.runtime.CoordinatorMetadataImage;
+import org.apache.kafka.coordinator.group.assignor.SimpleAssignor;
 import org.apache.kafka.coordinator.group.generated.ConsumerGroupCurrentMemberAssignmentValue;
 import org.apache.kafka.coordinator.group.generated.ShareGroupCurrentMemberAssignmentValue;
 import org.apache.kafka.server.common.ApiMessageAndVersion;
@@ -32,6 +33,8 @@ import com.dynatrace.hash4j.hashing.HashStream64;
 import com.dynatrace.hash4j.hashing.Hashing;
 import com.google.re2j.Pattern;
 import com.google.re2j.PatternSyntaxException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -48,6 +51,11 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 public class Utils {
+
+    private static final Logger log = LoggerFactory.getLogger(Utils.class);
+
+
+
     private Utils() {}
 
     /**
@@ -413,6 +421,7 @@ public class Utils {
         for (int i = 0; i < topicMetadata.partitionCount(); i++) {
             hasher = hasher.putInt(i);
             List<String> partitionRacks = topicMetadata.partitionRacks(i);
+            log.info("topic is {},partitions is {}, partition info is {}", topicName, i, partitionRacks);
             Collections.sort(partitionRacks);
 
             for (String rack : partitionRacks) {

@@ -23,6 +23,8 @@ import org.apache.kafka.image.MetadataImage;
 import org.apache.kafka.image.TopicImage;
 import org.apache.kafka.metadata.BrokerRegistration;
 import org.apache.kafka.metadata.PartitionRegistration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -107,6 +109,9 @@ public class KRaftCoordinatorMetadataImage implements CoordinatorMetadataImage {
     }
 
     public static class KraftTopicMetadata implements TopicMetadata {
+
+        private static final Logger log = LoggerFactory.getLogger(KraftTopicMetadata.class);
+
         private final TopicImage topicImage;
         private final ClusterImage clusterImage;
 
@@ -134,9 +139,12 @@ public class KRaftCoordinatorMetadataImage implements CoordinatorMetadataImage {
         public List<String> partitionRacks(int partition) {
             List<String> racks = new ArrayList<>();
             PartitionRegistration partitionRegistration = topicImage.partitions().get(partition);
+            log.info("topic name is {}, partition id is {}, broker is {}", topicImage.name(), partition, partitionRegistration);
+
             if (partitionRegistration != null) {
                 for (int replicaId : partitionRegistration.replicas) {
                     BrokerRegistration broker = clusterImage.broker(replicaId);
+                    log.info("topic name is {}, partition id is {}, replica id is {}, broker is {}", topicImage.name(), partition, replicaId, broker);
                     if (broker != null && !broker.fenced()) {
                         broker.rack().ifPresent(racks::add);
                     }
