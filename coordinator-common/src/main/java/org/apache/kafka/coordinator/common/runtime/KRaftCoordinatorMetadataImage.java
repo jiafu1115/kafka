@@ -137,7 +137,7 @@ public class KRaftCoordinatorMetadataImage implements CoordinatorMetadataImage {
             if (partitionRegistration != null) {
                 for (int replicaId : partitionRegistration.replicas) {
                     BrokerRegistration broker = clusterImage.broker(replicaId);
-                    if (broker != null && ! broker.fenced()) {
+                    if (broker != null && !broker.fenced()) {
                         broker.rack().ifPresent(racks::add);
                     }
                 }
