@@ -8,22 +8,6 @@ keywords:
 type: docs
 ---
 
-<!--
- Licensed to the Apache Software Foundation (ASF) under one or more
- contributor license agreements.  See the NOTICE file distributed with
- this work for additional information regarding copyright ownership.
- The ASF licenses this file to You under the Apache License, Version 2.0
- (the "License"); you may not use this file except in compliance with
- the License.  You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
--->
 
 
 ## Tiered Storage Overview
@@ -46,12 +30,10 @@ By default, the Kafka server will not enable the tiered storage feature. `remote
 
 After correctly configuring broker side configurations for tiered storage feature, there are still configurations in topic level needed to be set. `remote.storage.enable` is the switch to determine if a topic wants to use tiered storage or not. By default it is set to false. After enabling `remote.storage.enable` property, the next thing to consider is the log retention. When tiered storage is enabled for a topic, there are 2 additional log retention configurations to set: 
 
-  * `local.retention.ms`
-  * `retention.ms`
-  * `local.retention.bytes`
-  * `retention.bytes`
-
-
+- `local.retention.ms`
+- `retention.ms`
+- `local.retention.bytes`
+- `retention.bytes`
 
 The configuration prefixed with `local` are to specify the time/size the "local" log file can accept before moving to remote storage, and then get deleted. If unset, The value in `retention.ms` and `retention.bytes` will be used.
 
@@ -167,15 +149,19 @@ $ bin/kafka-topics.sh --delete --topic tieredTopic --bootstrap-server localhost:
 
 After topics are deleted, you're safe to set `remote.log.storage.system.enable=false` in the broker configuration.
 
+## Delay Upload
+
+By default, non-active log segments are uploaded to remote storage as soon as they are eligible, keeping data in remote storage as up to date as possible. As a result, some segments before local retention are stored redundantly in both the local and remote tiers. If you do not need remote storage to always hold the newest data, you can delay upload with `remote.copy.lag.ms` and `remote.copy.lag.bytes` to reduce this redundancy and save remote storage space. The remote log manager uses these time-based and size-based lag parameters to decide when a segment becomes eligible for upload; the same settings are also available at the broker level as `log.remote.copy.lag.ms` and `log.remote.copy.lag.bytes`.
+
+For more information, please check [KIP-1241](https://cwiki.apache.org/confluence/x/A4LMFw).
+
 ## Limitations
 
 While the Tiered Storage works for most use cases, it is still important to be aware of the following limitations: 
 
-  * No support for compacted topics
-  * Disabling tiered storage on all topics where it is enabled is required before disabling tiered storage at the broker level
-  * Admin actions related to tiered storage feature are only supported on clients from version 3.0 onwards
-  * No support for log segments missing producer snapshot file. It can happen when topic is created before v2.8.0.
-
-
+- No support for compacted topics
+- Disabling tiered storage on all topics where it is enabled is required before disabling tiered storage at the broker level
+- Admin actions related to tiered storage feature are only supported on clients from version 3.0 onwards
+- No support for log segments missing producer snapshot file. It can happen when topic is created before v2.8.0.
 
 For more information, please check [Kafka Tiered Storage GA Release Notes](https://cwiki.apache.org/confluence/x/9xDOEg). 
